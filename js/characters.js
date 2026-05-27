@@ -5,27 +5,27 @@ export const PACK = [
   {
     id: 'max', name: 'Max', breed: 'Golden Retriever', ears: 'floppy',
     fur: '#E8B964', furDark: '#CE9B43', snout: '#F6D89A', nose: '#3A2A18',
-    accent: '#B8862E', blurb: 'Every stranger is a friend who hasn’t said hi yet.',
+    accent: '#B8862E', voice: 0.22, blurb: 'Every stranger is a friend who hasn’t said hi yet.',
   },
   {
     id: 'rocky', name: 'Rocky', breed: 'Husky', ears: 'pointy',
     fur: '#9FB4C4', furDark: '#6E8597', snout: '#F2F6F9', nose: '#26313A',
-    accent: '#397FC5', blurb: 'Born to run, built for snow days.',
+    accent: '#397FC5', voice: 0.34, blurb: 'Born to run, built for snow days.',
   },
   {
     id: 'oscar', name: 'Oscar', breed: 'Collie', ears: 'semi',
     fur: '#C98A4B', furDark: '#9E6A33', snout: '#FBF1E2', nose: '#3A2A18',
-    accent: '#9E6A33', blurb: 'The thoughtful one who herds the whole pack.',
+    accent: '#9E6A33', voice: 0.5, blurb: 'The thoughtful one who herds the whole pack.',
   },
   {
     id: 'buddy', name: 'Buddy', breed: 'Corgi', ears: 'big',
     fur: '#E89B5A', furDark: '#C77A38', snout: '#FBEEDD', nose: '#3A2A18',
-    accent: '#C77A38', blurb: 'Short legs, big heart, bigger appetite.',
+    accent: '#C77A38', voice: 0.62, blurb: 'Short legs, big heart, bigger appetite.',
   },
   {
     id: 'bella', name: 'Bella', breed: 'Poodle', ears: 'curly',
     fur: '#F4E3CE', furDark: '#E0C7A6', snout: '#FFF8EE', nose: '#3A2A18',
-    accent: '#F4A6B8', blurb: 'Fancy floof with a flair for the dramatic.',
+    accent: '#F4A6B8', voice: 0.85, blurb: 'Fancy floof with a flair for the dramatic.',
   },
 ];
 

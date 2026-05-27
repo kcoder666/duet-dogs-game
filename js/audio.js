@@ -197,6 +197,43 @@ export class AudioEngine {
     o.stop(t + 0.5); o2.stop(t + 0.5);
   }
 
+  // A short synthesized bark layered on a catch. `voice` (0 deep … 1 high) comes
+  // from the character, so each breed barks differently — big dogs woof low,
+  // the poodle yips high. A tonal pitch-drop body + a noise "chuff" for bite.
+  playBark(voice = 0.5) {
+    if (!this.ctx) return;
+    const t = this.now();
+    const f0 = 250 + voice * 380; // start pitch
+    const f1 = f0 * 0.55;         // quick downward drop = the "wuf"
+    const o = this.ctx.createOscillator();
+    o.type = 'sawtooth';
+    o.frequency.setValueAtTime(f0, t);
+    o.frequency.exponentialRampToValueAtTime(f1, t + 0.11);
+    const bp = this.ctx.createBiquadFilter();
+    bp.type = 'bandpass';
+    bp.frequency.value = 700 + voice * 1400;
+    bp.Q.value = 1.1;
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(0.3, t + 0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.16);
+    o.connect(bp).connect(g).connect(this.master);
+    o.start(t); o.stop(t + 0.2);
+    // noise transient for the bark's bite
+    const src = this.ctx.createBufferSource();
+    src.buffer = this._noise();
+    const hp = this.ctx.createBiquadFilter();
+    hp.type = 'bandpass';
+    hp.frequency.value = 1300 + voice * 1600;
+    hp.Q.value = 0.8;
+    const ng = this.ctx.createGain();
+    ng.gain.setValueAtTime(0.0001, t);
+    ng.gain.exponentialRampToValueAtTime(0.13, t + 0.008);
+    ng.gain.exponentialRampToValueAtTime(0.0001, t + 0.09);
+    src.connect(hp).connect(ng).connect(this.master);
+    src.start(t); src.stop(t + 0.12);
+  }
+
   playMiss() {
     if (!this.ctx) return;
     const t = this.now();
