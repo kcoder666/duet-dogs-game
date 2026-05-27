@@ -178,9 +178,10 @@ export class AudioEngine {
     o.stop(t + 0.4); o2.stop(t + 0.4);
   }
 
-  // Play an exact melody note (the song's note for a caught treat), foreground.
-  // A perfect hit rings a touch brighter/longer than a good one.
-  playMelodyNote(midi, perfect = true) {
+  // Play an exact melody note (the song's note for a treat). A perfect hit
+  // rings brightest; `volume` (0..1) dims it — missed notes still sound, softly,
+  // so the player can keep hearing and recognising the song.
+  playMelodyNote(midi, perfect = true, volume = 1) {
     if (!this.ctx || !Number.isFinite(midi)) return;
     const t = this.now();
     const o = this.ctx.createOscillator();
@@ -190,7 +191,7 @@ export class AudioEngine {
     o2.type = 'sine';
     o2.frequency.value = midiToFreq(midi + 12);
     const g = this.ctx.createGain();
-    this._env(g, t, 0.005, perfect ? 0.42 : 0.3, perfect ? 0.55 : 0.42);
+    this._env(g, t, 0.005, perfect ? 0.42 : 0.3, (perfect ? 0.55 : 0.42) * volume);
     o.connect(g); o2.connect(g); g.connect(this.master);
     o.start(t); o2.start(t);
     o.stop(t + 0.5); o2.stop(t + 0.5);
@@ -204,7 +205,8 @@ export class AudioEngine {
     o.frequency.setValueAtTime(220, t);
     o.frequency.exponentialRampToValueAtTime(110, t + 0.18);
     const g = this.ctx.createGain();
-    this._env(g, t, 0.005, 0.2, 0.25);
+    // Kept subtle so the softly-played missed melody note stays recognisable.
+    this._env(g, t, 0.005, 0.16, 0.12);
     o.connect(g).connect(this.master);
     o.start(t);
     o.stop(t + 0.25);

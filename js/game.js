@@ -148,6 +148,8 @@ export class Game {
     this.happiness -= HAPPINESS.missLoss;
     this.shake = 8;
     this.audio.playMiss();
+    // Still sound the missed note quietly so the melody stays recognisable.
+    if (Number.isFinite(treat.midi)) this.audio.playMelodyNote(treat.midi, false, 0.4);
     const L = this._layout();
     this._popup(L.colCx[treat.side * 2 + treat.slot], L.hitY - L.dogR, 'MISS', '#E0563B', 18);
     if (this.happiness <= 0) this._end();
