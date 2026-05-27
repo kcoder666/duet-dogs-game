@@ -6,7 +6,7 @@ import { Game } from './game.js';
 import { UI } from './ui.js';
 import { attachInput } from './input.js';
 import { getSong } from './beatmap.js';
-import { getCharacter } from './characters.js';
+import { getCharacter, PACK } from './characters.js';
 
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
@@ -40,6 +40,7 @@ ui.handlers = {
   },
   onPlay: async () => {
     await audio.resume();
+    audio.preloadBarks(PACK.map((c) => c.id)); // load any generated bark SFX
     audio.playUi(true);
     ui.showSongs();
   },
@@ -47,7 +48,7 @@ ui.handlers = {
     audio.playUi(true);
     ui.showChars(getSong(id));
   },
-  onPreview: (voice) => audio.playBark(voice),
+  onPreview: (char) => audio.playBark(char),
   onStart: async (song, leftId, rightId) => {
     await audio.resume();
     current = { song, left: getCharacter(leftId), right: getCharacter(rightId) };

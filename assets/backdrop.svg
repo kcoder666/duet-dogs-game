@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="160" viewBox="0 0 160 160">
+  <!-- Playful tiling backdrop: paw prints, bones, hearts & notes in warm tones -->
+  <!-- paw print -->
+  <g fill="rgba(201,150,70,0.42)">
+    <ellipse cx="34" cy="48" rx="10" ry="12"/>
+    <circle cx="21" cy="34" r="4.6"/>
+    <circle cx="33" cy="29" r="5"/>
+    <circle cx="45" cy="34" r="4.6"/>
+    <circle cx="53" cy="45" r="3.8"/>
+  </g>
+  <!-- bone -->
+  <g fill="rgba(255,245,214,0.34)" transform="translate(116,34) rotate(35)">
+    <circle cx="-12" cy="-6" r="6.5"/>
+    <circle cx="-12" cy="6" r="6.5"/>
+    <circle cx="14" cy="-6" r="6.5"/>
+    <circle cx="14" cy="6" r="6.5"/>
+    <rect x="-12" y="-5" width="26" height="10" rx="4"/>
+  </g>
+  <!-- heart -->
+  <path fill="rgba(244,166,184,0.45)" transform="translate(118,118)"
+        d="M0 6 C0 0 -10 0 -10 -6 C-10 -12 0 -12 0 -4 C0 -12 10 -12 10 -6 C10 0 0 0 0 6 Z"/>
+  <!-- second paw, rotated -->
+  <g fill="rgba(201,150,70,0.3)" transform="translate(70,108) rotate(-18)">
+    <ellipse cx="0" cy="10" rx="9" ry="11"/>
+    <circle cx="-12" cy="-3" r="4.2"/>
+    <circle cx="-1" cy="-8" r="4.6"/>
+    <circle cx="10" cy="-3" r="4.2"/>
+    <circle cx="17" cy="7" r="3.4"/>
+  </g>
+  <!-- music note -->
+  <g fill="rgba(124,184,95,0.42)" transform="translate(8,118)">
+    <rect x="10" y="-14" width="2.6" height="16" rx="1"/>
+    <ellipse cx="8" cy="2" rx="5" ry="3.6"/>
+    <path d="M10.6 -14 q7 1 7 6 q-3 -3 -7 -2 Z"/>
+  </g>
+</svg>

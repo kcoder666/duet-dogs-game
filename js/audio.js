@@ -197,10 +197,40 @@ export class AudioEngine {
     o.stop(t + 0.5); o2.stop(t + 0.5);
   }
 
-  // A short synthesized bark layered on a catch. `voice` (0 deep … 1 high) comes
-  // from the character, so each breed barks differently — big dogs woof low,
-  // the poodle yips high. A tonal pitch-drop body + a noise "chuff" for bite.
-  playBark(voice = 0.5) {
+  // Preload per-character bark samples (assets/sfx/<id>.mp3) if present. Missing
+  // files are ignored — the game falls back to synthesized barks.
+  async preloadBarks(ids) {
+    if (!this.ctx) return;
+    this.barkBuffers = this.barkBuffers || {};
+    await Promise.all(ids.map(async (id) => {
+      if (this.barkBuffers[id]) return;
+      try {
+        const res = await fetch(`assets/sfx/${id}.mp3`);
+        if (!res.ok) return;
+        this.barkBuffers[id] = await this.ctx.decodeAudioData(await res.arrayBuffer());
+      } catch { /* no sample for this pup — synth fallback */ }
+    }));
+  }
+
+  // Play a character's bark: the generated SFX sample if loaded, else a
+  // synthesized bark from the breed's voice. `char` is { id, voice }.
+  playBark(char) {
+    if (!this.ctx || !char) return;
+    const buf = this.barkBuffers && this.barkBuffers[char.id];
+    if (buf) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = buf;
+      const g = this.ctx.createGain();
+      g.gain.value = 0.9;
+      src.connect(g).connect(this.master);
+      src.start();
+      return;
+    }
+    this._synthBark(typeof char.voice === 'number' ? char.voice : 0.5);
+  }
+
+  // Synthesized fallback bark — pitch-drop body + a noise "chuff" for bite.
+  _synthBark(voice = 0.5) {
     if (!this.ctx) return;
     const t = this.now();
     const f0 = 250 + voice * 380; // start pitch

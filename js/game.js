@@ -120,9 +120,9 @@ export class Game {
     // (Fallback charts without a source note use the pentatonic catch sound.)
     if (Number.isFinite(treat.midi)) this.audio.playMelodyNote(treat.midi, perfect);
     else this.audio.playCatch(treat.side, Math.floor(this.combo / 2));
-    // Layer the catching dog's own bark (each breed has a distinct voice).
+    // Layer the catching dog's own bark (generated SFX, or synth fallback).
     const char = treat.side === 0 ? this.leftChar : this.rightChar;
-    this.audio.playBark(char.voice);
+    this.audio.playBark(char);
     this.comboPulse = 1;
     this.hitFlash[treat.side] = 1;
     const L = this._layout();
