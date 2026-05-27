@@ -30,29 +30,35 @@ export function getSong(id) {
 }
 
 // notes: parsed MIDI notes already shifted by the intro offset (so note.time is
-// the game-time at which the treat should be caught). Returns { notes, duration }.
+// the game-time at which the treat should be caught). Each treat gets a side
+// (0 left dog / 1 right dog) and slot (0 / 1 — the dog's two positions), derived
+// from the melody's pitch contour. Returns { notes, duration }.
 export function buildBeatmapFromMidi(notes, song) {
   const mel = notes.filter((n) => n.chan === 0).sort((a, b) => a.time - b.time);
   if (!mel.length) return buildFallback(song);
 
+  // Map pitch to one of 4 columns by quartile: lowest→col0 … highest→col3.
   const pitches = mel.map((n) => n.midi).sort((a, b) => a - b);
-  const threshold = pitches[Math.floor(pitches.length / 2)]; // median split
-  const minGap = 0.14;
-  const last = [-Infinity, -Infinity];
+  const q = (f) => pitches[Math.floor(f * (pitches.length - 1))];
+  const q1 = q(0.25); const q2 = q(0.5); const q3 = q(0.75);
+  const colOf = (m) => (m <= q1 ? 0 : m <= q2 ? 1 : m <= q3 ? 2 : 3);
+  const slideTime = 1 / 6; // a dog needs ~this long to cross between its slots
+
+  const lastBySide = [-Infinity, -Infinity];
+  const lastSlot = [0, 1];
   const treats = [];
   let i = 0;
   for (const n of mel) {
-    let lane = n.midi < threshold ? 0 : 1;
-    if (n.time - last[lane] < minGap) {
-      const other = 1 - lane;
-      if (n.time - last[other] >= minGap) lane = other;
-      else continue; // too dense on both lanes — drop this note as a treat
-    }
-    last[lane] = n.time;
-    // Carry the source melody note so catching it plays that note (the player
-    // performs the song, Piano-Tiles style).
+    const col = colOf(n.midi);
+    const side = col < 2 ? 0 : 1;
+    const slot = col % 2;
+    // Drop a note only if it would force the same dog to teleport across slots
+    // faster than it can slide — keeps the chart fair and the melody intact.
+    if (slot !== lastSlot[side] && n.time - lastBySide[side] < slideTime) continue;
+    lastBySide[side] = n.time;
+    lastSlot[side] = slot;
     treats.push({
-      lane, time: n.time, type: 'good',
+      side, slot, time: n.time, type: 'good',
       emoji: TREATS[i++ % TREATS.length], midi: n.midi, dur: n.dur,
     });
   }
@@ -68,28 +74,32 @@ function addDecoys(treats, song, mel) {
   const step = 60 / song.bpm / 2; // eighth-note grid
   const start = mel[0].time;
   const end = mel[mel.length - 1].time;
-  const minGap = 0.2;
-  const isNear = (t, lane) => treats.some((x) => x.lane === lane && Math.abs(x.time - t) < minGap);
+  const minGap = 0.22;
+  const near = (t, side, slot) =>
+    treats.some((x) => x.side === side && x.slot === slot && Math.abs(x.time - t) < minGap);
   for (let t = start; t < end; t += step) {
     if (rng() > song.decoyChance) continue;
-    const lane = rng() < 0.5 ? 0 : 1;
-    if (isNear(t, lane)) continue;
-    treats.push({ lane, time: t, type: 'decoy', emoji: DECOY });
+    const side = rng() < 0.5 ? 0 : 1;
+    const slot = rng() < 0.5 ? 0 : 1;
+    if (near(t, side, slot)) continue;
+    treats.push({ side, slot, time: t, type: 'decoy', emoji: DECOY });
   }
   treats.sort((a, b) => a.time - b.time);
 }
 
-// Pure-synth fallback chart (used only if the MIDI can't be loaded).
+// Fallback chart (used only if the MIDI can't be loaded). No source notes, so
+// catches use the pentatonic catch sound instead of melody notes.
 function buildFallback(song) {
   const rng = mulberry32(hash(song.id));
   const step = 60 / song.bpm / 2;
   const notes = [];
-  let lane = 0;
+  let col = 0;
   for (let i = 0; i < 64; i++) {
     if (rng() > 0.6) continue;
-    lane = rng() < 0.6 ? 1 - lane : lane;
+    if (rng() < 0.6) col = (col + 1 + Math.floor(rng() * 3)) % 4;
     notes.push({
-      lane, time: song.fallTime + 2 + i * step, type: 'good',
+      side: col < 2 ? 0 : 1, slot: col % 2,
+      time: song.fallTime + 2 + i * step, type: 'good',
       emoji: TREATS[i % TREATS.length],
     });
   }

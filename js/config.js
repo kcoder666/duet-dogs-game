@@ -42,6 +42,12 @@ export const COMBO_CAP = 4;
 // seconds. Lower = harder (less reaction time). Overridable per song.
 export const DEFAULT_FALL_TIME = 1.9;
 
+// Each dog slides between its two positions. Speed is in "slots per second"
+// (1 slot = a full move), so ~0.11s to cross. SETTLE_PERFECT is how close the
+// dog must be to its target slot at the treat's arrival to score a Perfect.
+export const DOG_SLIDE_SPEED = 9;
+export const SETTLE_PERFECT = 0.28;
+
 // Rank thresholds by accuracy (0..1) used on the results screen.
 export const RANKS = [
   { rank: 'S', min: 0.95 },

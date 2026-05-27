@@ -36,7 +36,7 @@ export class UI {
         </div>
         <button class="btn primary" id="play">▶ Play</button>
         <button class="btn ghost" id="mute">${this.muted ? '🔇 Sound off' : '🔊 Sound on'}</button>
-        <p class="hint">Tap the left &amp; right side of the screen in time with the falling treats. Keep both pups happy!</p>
+        <p class="hint">Each pup slides between two spots — tap under a falling treat to move the pup there and catch it on the beat. Keep both pups happy!</p>
       </div>`);
     renderPreview(document.getElementById('t-left'), 'max', 'idle');
     renderPreview(document.getElementById('t-right'), 'bella', 'idle');

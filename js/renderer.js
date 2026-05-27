@@ -10,12 +10,12 @@ const EMOJI_FONT = '"Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", s
 export function computeLayout(w, h) {
   const hitY = h * 0.8;
   const topY = -h * 0.06;
+  // 4 columns: cols 0,1 belong to the left dog; cols 2,3 to the right dog.
+  const colCx = [0, 1, 2, 3].map((i) => (i + 0.5) * w / 4);
   return {
-    w, h, hitY, topY,
-    laneW: w / 2,
-    laneCx: [w * 0.25, w * 0.75],
-    dogR: Math.min(w * 0.13, 64),
-    treatR: Math.min(w * 0.075, 34),
+    w, h, hitY, topY, colCx,
+    dogR: Math.min(w * 0.11, 54),
+    treatR: Math.min(w * 0.06, 28),
   };
 }
 
@@ -27,8 +27,7 @@ export function draw(ctx, w, h, s) {
   }
   drawBackground(ctx, L, s);
   drawLanes(ctx, L);
-  drawHitLine(ctx, L, s);
-  drawGuides(ctx, L, s);
+  drawPads(ctx, L, s);
   drawTreats(ctx, L, s);
   drawDogs(ctx, L, s);
   drawParticles(ctx, s);
@@ -54,7 +53,17 @@ function drawBackground(ctx, L, s) {
 }
 
 function drawLanes(ctx, L) {
-  ctx.strokeStyle = 'rgba(43,29,16,0.12)';
+  // Faint column dividers, with a stronger line splitting the two dogs' halves.
+  ctx.strokeStyle = 'rgba(43,29,16,0.06)';
+  ctx.lineWidth = 1.5;
+  for (let i = 1; i < 4; i++) {
+    if (i === 2) continue;
+    ctx.beginPath();
+    ctx.moveTo(i * L.w / 4, 0);
+    ctx.lineTo(i * L.w / 4, L.h);
+    ctx.stroke();
+  }
+  ctx.strokeStyle = 'rgba(43,29,16,0.14)';
   ctx.lineWidth = 2;
   ctx.beginPath();
   ctx.moveTo(L.w / 2, 0);
@@ -62,21 +71,33 @@ function drawLanes(ctx, L) {
   ctx.stroke();
 }
 
-function drawHitLine(ctx, L, s) {
-  ctx.save();
-  for (const cx of L.laneCx) {
-    const glow = s.hitFlash[cx === L.laneCx[0] ? 0 : 1] || 0;
-    ctx.fillStyle = `rgba(184,134,46,${0.18 + glow * 0.5})`;
+// The 4 catch pads (each dog's two positions). Empty pads show where a dog can
+// move; the pad a dog is steering to glows, and flashes on tap.
+function drawPads(ctx, L, s) {
+  const keys = ['F', 'G', 'H', 'J'];
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  for (let col = 0; col < 4; col++) {
+    const side = col < 2 ? 0 : 1;
+    const slot = col % 2;
+    const cx = L.colCx[col];
+    const active = s.dogTarget[side] === slot;
+    const flash = active ? (s.tapFlash[side] || 0) : 0;
+    const rx = L.dogR * 1.15;
+    const ry = L.dogR * 0.4;
+    ctx.fillStyle = `rgba(184,134,46,${(active ? 0.26 : 0.1) + flash * 0.5})`;
     ctx.beginPath();
-    ctx.ellipse(cx, L.hitY, L.dogR * 1.5, L.dogR * 0.45, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, L.hitY, rx, ry, 0, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = `rgba(184,134,46,${0.4 + glow * 0.6})`;
-    ctx.lineWidth = 3 + glow * 4;
+    ctx.lineWidth = active ? 3 + flash * 4 : 1.5;
+    ctx.strokeStyle = `rgba(140,100,32,${active ? 0.5 + flash * 0.5 : 0.22})`;
     ctx.beginPath();
-    ctx.ellipse(cx, L.hitY, L.dogR * 1.5, L.dogR * 0.45, 0, 0, Math.PI * 2);
+    ctx.ellipse(cx, L.hitY, rx, ry, 0, 0, Math.PI * 2);
     ctx.stroke();
+    ctx.fillStyle = 'rgba(43,29,16,0.35)';
+    ctx.font = '700 12px Fredoka, sans-serif';
+    ctx.fillText(keys[col], cx, L.h * 0.94);
   }
-  ctx.restore();
 }
 
 function drawTreats(ctx, L, s) {
@@ -87,7 +108,7 @@ function drawTreats(ctx, L, s) {
     if (tr.judged) continue;
     const prog = (s.audioTime - (tr.time - s.fallTime)) / s.fallTime;
     if (prog < 0 || prog > 1.25) continue;
-    const x = L.laneCx[tr.lane];
+    const x = L.colCx[tr.side * 2 + tr.slot];
     const y = L.topY + (L.hitY - L.topY) * prog;
     // Plate behind the treat so it reads crisply against the background.
     ctx.beginPath();
@@ -110,36 +131,16 @@ function drawTreats(ctx, L, s) {
   }
 }
 
-// Bottom-of-lane buttons telling the player which side to press, plus the
-// keyboard key, lighting up on each tap.
-function drawGuides(ctx, L, s) {
-  const y = L.h * 0.94;
-  const bw = L.laneW * 0.42;
-  const bh = Math.min(54, L.h * 0.07);
-  const labels = [['◀', 'F'], ['▶', 'J']];
-  for (let lane = 0; lane < 2; lane++) {
-    const cx = L.laneCx[lane];
-    const flash = s.tapFlash ? s.tapFlash[lane] : 0;
-    ctx.fillStyle = `rgba(184,134,46,${0.16 + flash * 0.6})`;
-    roundRect(ctx, cx - bw / 2, y - bh / 2, bw, bh, bh / 2);
-    ctx.fill();
-    ctx.lineWidth = 2 + flash * 3;
-    ctx.strokeStyle = `rgba(140,100,32,${0.4 + flash * 0.6})`;
-    ctx.stroke();
-    ctx.fillStyle = BRAND.brown;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.font = `800 ${bh * 0.42}px Fredoka, sans-serif`;
-    ctx.fillText(`${labels[lane][0]}  ${labels[lane][1]}`, cx, y);
-  }
-}
-
 function drawDogs(ctx, L, s) {
-  for (let lane = 0; lane < 2; lane++) {
-    const d = s.dogsState[lane];
-    const char = lane === 0 ? s.leftChar : s.rightChar;
+  for (let side = 0; side < 2; side++) {
+    const d = s.dogsState[side];
+    const char = side === 0 ? s.leftChar : s.rightChar;
+    // Slide between the side's two column centres by the animated dog position.
+    const a = L.colCx[side * 2];
+    const b = L.colCx[side * 2 + 1];
+    const x = a + (b - a) * s.dogPos[side];
     const bob = Math.sin(s.audioTime * Math.PI * 2 * (s.bps || 2)) * 4 + d.bob;
-    drawDog(ctx, L.laneCx[lane], L.hitY + bob, L.dogR, char, {
+    drawDog(ctx, x, L.hitY + bob, L.dogR, char, {
       mouthOpen: d.mouthOpen,
       blink: d.blink,
     });

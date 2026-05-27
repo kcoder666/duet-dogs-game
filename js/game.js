@@ -3,7 +3,7 @@
 // portable. Drives the play loop until the song ends or happiness hits zero.
 
 import {
-  HIT_WINDOW, SCORE, HAPPINESS, comboMultiplier, rankFor,
+  SCORE, HAPPINESS, DOG_SLIDE_SPEED, SETTLE_PERFECT, comboMultiplier, rankFor,
 } from './config.js';
 import { BRAND } from './config.js';
 import { buildBeatmapFromMidi } from './beatmap.js';
@@ -63,6 +63,10 @@ export class Game {
       0: { mouthOpen: 0, blink: 0, bob: 0, blinkT: Math.random() * 3 },
       1: { mouthOpen: 0, blink: 0, bob: 0, blinkT: Math.random() * 3 },
     };
+    // Each dog slides between its two slots. dogPos is the animated fractional
+    // position (0..1); dogTarget is the slot (0 or 1) the player steered it to.
+    this.dogPos = [0, 0];
+    this.dogTarget = [0, 0];
     this.musicStart = this.audio.startMusic(song, shifted, map.duration);
     this.running = true;
     this.lastFrame = performance.now();
@@ -79,34 +83,31 @@ export class Game {
     return this.audio.now() - this.musicStart;
   }
 
-  // Player tapped a lane: judge the nearest unjudged treat within reach.
-  tap(lane) {
+  // Player tapped a column (0..3): steer that side's dog to the matching slot.
+  // Catching is resolved when a treat reaches the dog, not on the tap itself.
+  tap(column) {
     if (!this.running) return;
-    const now = this.audioTime;
-    let best = null;
-    let bestDt = Infinity;
-    for (const t of this.treats) {
-      if (t.judged || t.lane !== lane) continue;
-      const dt = Math.abs(now - t.time);
-      if (dt < bestDt) { bestDt = dt; best = t; }
-    }
-    this._triggerDog(lane);
-    if (!best || bestDt > HIT_WINDOW.good) {
-      // No treat in range — a wasted tap, mild feedback only.
-      this.audio.playUi(false);
-      return;
-    }
-    if (best.type === 'decoy') {
-      best.judged = true;
-      this._registerDecoyHit(best, lane);
-      return;
-    }
-    best.judged = true;
-    const perfect = bestDt <= HIT_WINDOW.perfect;
-    this._registerCatch(best, lane, perfect);
+    const side = column < 2 ? 0 : 1;
+    const slot = column % 2;
+    this.dogTarget[side] = slot;
+    this._triggerDog(side);
   }
 
-  _registerCatch(treat, lane, perfect) {
+  // A treat reached the hit line: did the owning dog get there in time?
+  _resolve(treat) {
+    treat.judged = true;
+    const side = treat.side;
+    const onSlot = this.dogTarget[side] === treat.slot;
+    const settled = Math.abs(this.dogPos[side] - treat.slot) <= SETTLE_PERFECT;
+    if (treat.type === 'decoy') {
+      if (onSlot && settled) this._registerDecoyHit(treat); // dog sitting on it
+      return;
+    }
+    if (onSlot) this._registerCatch(treat, settled);
+    else this._registerMiss(treat);
+  }
+
+  _registerCatch(treat, perfect) {
     this.combo++;
     this.maxCombo = Math.max(this.maxCombo, this.combo);
     this.hits++;
@@ -118,25 +119,26 @@ export class Game {
     // Catching performs the song: play this treat's actual melody note.
     // (Fallback charts without a source note use the pentatonic catch sound.)
     if (Number.isFinite(treat.midi)) this.audio.playMelodyNote(treat.midi, perfect);
-    else this.audio.playCatch(lane, Math.floor(this.combo / 2));
+    else this.audio.playCatch(treat.side, Math.floor(this.combo / 2));
     this.comboPulse = 1;
-    this.hitFlash[lane] = 1;
+    this.hitFlash[treat.side] = 1;
     const L = this._layout();
-    this._popup(L.laneCx[lane], L.hitY - L.dogR * 1.4,
+    const x = L.colCx[treat.side * 2 + treat.slot];
+    this._popup(x, L.hitY - L.dogR * 1.4,
       perfect ? 'PERFECT!' : 'GOOD', perfect ? BRAND.gold : BRAND.green,
-      perfect ? 26 : 22);
-    this._burst(L.laneCx[lane], L.hitY, perfect ? 14 : 8, treat.emoji);
+      perfect ? 24 : 20);
+    this._burst(x, L.hitY, perfect ? 14 : 8, treat.emoji);
     vibrate(perfect ? 18 : 10);
   }
 
-  _registerDecoyHit(treat, lane) {
+  _registerDecoyHit(treat) {
     this.combo = 0;
     this.misses++;
     this.happiness -= HAPPINESS.decoyLoss;
     this.audio.playMiss();
     this.shake = 14;
     const L = this._layout();
-    this._popup(L.laneCx[lane], L.hitY - L.dogR * 1.4, 'OOPS! 🌶️', '#E0563B', 24);
+    this._popup(L.colCx[treat.side * 2 + treat.slot], L.hitY - L.dogR * 1.4, 'OOPS! 🌶️', '#E0563B', 22);
     if (this.happiness <= 0) this._end();
   }
 
@@ -147,7 +149,7 @@ export class Game {
     this.shake = 8;
     this.audio.playMiss();
     const L = this._layout();
-    this._popup(L.laneCx[treat.lane], L.hitY - L.dogR, 'MISS', '#E0563B', 20);
+    this._popup(L.colCx[treat.side * 2 + treat.slot], L.hitY - L.dogR, 'MISS', '#E0563B', 18);
     if (this.happiness <= 0) this._end();
   }
 
@@ -162,14 +164,15 @@ export class Game {
 
   _update(dt) {
     const now = this.audioTime;
-    // Auto-miss treats that fell past the window without a tap.
+    // Slide each dog toward its target slot.
+    for (const side of [0, 1]) {
+      const step = DOG_SLIDE_SPEED * dt;
+      const diff = this.dogTarget[side] - this.dogPos[side];
+      this.dogPos[side] += Math.max(-step, Math.min(step, diff));
+    }
+    // Resolve treats as they reach the hit line (catch if the dog is there).
     for (const t of this.treats) {
-      if (t.judged) continue;
-      if (now - t.time > HIT_WINDOW.good) {
-        t.judged = true;
-        if (t.type === 'good') this._registerMiss(t);
-        // letting a decoy pass is correct — no penalty
-      }
+      if (!t.judged && now >= t.time) this._resolve(t);
     }
     // decay transient visuals
     this.shake = Math.max(0, this.shake - dt * 60);
@@ -235,7 +238,8 @@ export class Game {
   _layout() {
     const w = this.canvas.clientWidth;
     const h = this.canvas.clientHeight;
-    return { laneCx: [w * 0.25, w * 0.75], hitY: h * 0.8, dogR: Math.min(w * 0.13, 64) };
+    const colCx = [0, 1, 2, 3].map((i) => (i + 0.5) * w / 4);
+    return { colCx, hitY: h * 0.8, dogR: Math.min(w * 0.11, 54) };
   }
 
   _end() {
@@ -264,6 +268,8 @@ export class Game {
     return {
       treats: this.treats,
       dogsState: this.dogsState,
+      dogPos: this.dogPos,
+      dogTarget: this.dogTarget,
       leftChar: this.leftChar,
       rightChar: this.rightChar,
       score: this.score,
