@@ -49,7 +49,12 @@ export function buildBeatmapFromMidi(notes, song) {
       else continue; // too dense on both lanes — drop this note as a treat
     }
     last[lane] = n.time;
-    treats.push({ lane, time: n.time, type: 'good', emoji: TREATS[i++ % TREATS.length] });
+    // Carry the source melody note so catching it plays that note (the player
+    // performs the song, Piano-Tiles style).
+    treats.push({
+      lane, time: n.time, type: 'good',
+      emoji: TREATS[i++ % TREATS.length], midi: n.midi, dur: n.dur,
+    });
   }
 
   if (song.decoyChance > 0) addDecoys(treats, song, mel);

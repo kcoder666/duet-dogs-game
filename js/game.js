@@ -115,7 +115,10 @@ export class Game {
     this.score += Math.round(base * comboMultiplier(this.combo));
     this.happiness = Math.min(HAPPINESS.max,
       this.happiness + (perfect ? HAPPINESS.perfectGain : HAPPINESS.goodGain));
-    this.audio.playCatch(lane, Math.floor(this.combo / 2));
+    // Catching performs the song: play this treat's actual melody note.
+    // (Fallback charts without a source note use the pentatonic catch sound.)
+    if (Number.isFinite(treat.midi)) this.audio.playMelodyNote(treat.midi, perfect);
+    else this.audio.playCatch(lane, Math.floor(this.combo / 2));
     this.comboPulse = 1;
     this.hitFlash[lane] = 1;
     const L = this._layout();

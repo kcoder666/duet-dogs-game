@@ -43,12 +43,11 @@ export class AudioEngine {
     const start = this.now() + startDelay;
     this._nextTime = start;
     this.musicEnd = start + duration;
+    // Only the bass auto-plays as backing — the melody (channel 0) is performed
+    // by the player: each caught treat triggers its real melody note.
     this.events = midiNotes
-      .map((n) => ({
-        at: start + n.time,
-        kind: n.chan === 1 ? 'bass' : 'lead',
-        midi: n.midi, dur: n.dur, vel: n.vel || 90,
-      }))
+      .filter((n) => n.chan === 1)
+      .map((n) => ({ at: start + n.time, kind: 'bass', midi: n.midi, dur: n.dur, vel: n.vel || 90 }))
       .sort((a, b) => a.at - b.at);
     this._evIdx = 0;
     this._scheduler();
@@ -76,34 +75,17 @@ export class AudioEngine {
     }
     while (this._evIdx < this.events.length && this.events[this._evIdx].at < horizon) {
       const e = this.events[this._evIdx++];
-      if (e.kind === 'bass') this._bass(e.at, e.midi);
-      else this._lead(e.at, e.midi, e.dur, e.vel);
+      this._bass(e.at, e.midi); // events contain only the backing bass line
     }
     this._timer = setTimeout(() => this._scheduler(), 25);
   }
 
-  // Drums only — melody and bass come from the MIDI events.
+  // Drums only — bass comes from MIDI events, melody is performed on catch.
   _scheduleBeat(i, t) {
     const eighth = i % 8;
     if (eighth % 2 === 0) this._kick(t, eighth === 0 ? 1 : 0.7);
     this._hat(t, eighth % 2 ? 0.5 : 0.3);
     if (eighth === 4) this._snare(t);
-  }
-
-  // Melodic lead voice for MIDI channel 0 (the catchable melody).
-  _lead(t, midi, dur = 0.3, vel = 90) {
-    const d = Math.max(0.16, Math.min(dur, 0.5));
-    const o = this.ctx.createOscillator();
-    o.type = 'triangle';
-    o.frequency.value = midiToFreq(midi);
-    const o2 = this.ctx.createOscillator();
-    o2.type = 'sine';
-    o2.frequency.value = midiToFreq(midi + 12);
-    const g = this.ctx.createGain();
-    this._env(g, t, 0.008, d, 0.16 * (vel / 100));
-    o.connect(g); o2.connect(g); g.connect(this.musicGain);
-    o.start(t); o2.start(t);
-    o.stop(t + d + 0.1); o2.stop(t + d + 0.1);
   }
 
   _env(node, t, a, d, peak = 1) {
@@ -194,6 +176,24 @@ export class AudioEngine {
     g.connect(this.master);
     o.start(t); o2.start(t);
     o.stop(t + 0.4); o2.stop(t + 0.4);
+  }
+
+  // Play an exact melody note (the song's note for a caught treat), foreground.
+  // A perfect hit rings a touch brighter/longer than a good one.
+  playMelodyNote(midi, perfect = true) {
+    if (!this.ctx || !Number.isFinite(midi)) return;
+    const t = this.now();
+    const o = this.ctx.createOscillator();
+    o.type = 'triangle';
+    o.frequency.value = midiToFreq(midi);
+    const o2 = this.ctx.createOscillator();
+    o2.type = 'sine';
+    o2.frequency.value = midiToFreq(midi + 12);
+    const g = this.ctx.createGain();
+    this._env(g, t, 0.005, perfect ? 0.42 : 0.3, perfect ? 0.55 : 0.42);
+    o.connect(g); o2.connect(g); g.connect(this.master);
+    o.start(t); o2.start(t);
+    o.stop(t + 0.5); o2.stop(t + 0.5);
   }
 
   playMiss() {
