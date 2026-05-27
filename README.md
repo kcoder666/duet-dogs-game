@@ -17,9 +17,10 @@ python3 -m http.server 8765
 # then open http://localhost:8765
 ```
 
-**Controls**
-- **Touch / mouse:** tap the left half for the left pup, right half for the right pup.
-- **Keyboard:** `F` / `←` = left, `J` / `→` = right.
+**Controls** — each pup slides between two spots (4 columns total). Move a pup
+under a falling treat to catch it.
+- **Touch / mouse:** tap the column you want a pup to move to.
+- **Keyboard:** left pup `A` (left) / `S` (right); right pup `D` (left) / `F` (right). Digits `1`–`4` also map to the four columns.
 
 **Goal:** catch falling treats right as they reach each dog. Judged **Perfect**
 (±75 ms) or **Good** (±150 ms). Build combos for a score multiplier (up to 4×).

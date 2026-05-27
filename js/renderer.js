@@ -74,7 +74,7 @@ function drawLanes(ctx, L) {
 // The 4 catch pads (each dog's two positions). Empty pads show where a dog can
 // move; the pad a dog is steering to glows, and flashes on tap.
 function drawPads(ctx, L, s) {
-  const keys = ['F', 'G', 'H', 'J'];
+  const keys = ['A', 'S', 'D', 'F'];
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (let col = 0; col < 4; col++) {
@@ -94,9 +94,19 @@ function drawPads(ctx, L, s) {
     ctx.beginPath();
     ctx.ellipse(cx, L.hitY, rx, ry, 0, 0, Math.PI * 2);
     ctx.stroke();
-    ctx.fillStyle = 'rgba(43,29,16,0.35)';
-    ctx.font = '700 12px Fredoka, sans-serif';
-    ctx.fillText(keys[col], cx, L.h * 0.94);
+    // Key-cap hint below the pad so the keyboard control is obvious.
+    const kw = 26;
+    const ky = L.h * 0.94;
+    ctx.fillStyle = active ? 'rgba(184,134,46,0.95)' : 'rgba(255,255,255,0.92)';
+    roundRect(ctx, cx - kw / 2, ky - kw / 2, kw, kw, 6);
+    ctx.fill();
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(43,29,16,0.25)';
+    roundRect(ctx, cx - kw / 2, ky - kw / 2, kw, kw, 6);
+    ctx.stroke();
+    ctx.fillStyle = active ? '#fff' : 'rgba(43,29,16,0.7)';
+    ctx.font = '800 14px Fredoka, sans-serif';
+    ctx.fillText(keys[col], cx, ky + 1);
   }
 }
 

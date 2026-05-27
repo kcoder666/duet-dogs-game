@@ -2,6 +2,8 @@
 // tap on a column steers that side's dog to that position. Calls onTap(column)
 // with column 0..3 (0,1 = left dog's two spots; 2,3 = right dog's). Supports
 // simultaneous two-finger taps (one per dog).
+//
+// Keys: A/S = left dog left/right, D/F = right dog left/right (digits 1-4 too).
 
 export function attachInput(canvas, onTap) {
   const columnFor = (clientX) => {
@@ -22,8 +24,8 @@ export function attachInput(canvas, onTap) {
     press(e.clientX);
   });
 
-  // Home-row keys f g h j → columns 0 1 2 3; digits 1-4 as an alternative.
-  const keyMap = { f: 0, g: 1, h: 2, j: 3, 1: 0, 2: 1, 3: 2, 4: 3 };
+  // A/S/D/F → columns 0 1 2 3 (left dog: A/S, right dog: D/F); digits 1-4 too.
+  const keyMap = { a: 0, s: 1, d: 2, f: 3, 1: 0, 2: 1, 3: 2, 4: 3 };
   window.addEventListener('keydown', (e) => {
     if (e.repeat) return;
     const col = keyMap[e.key.toLowerCase()];
