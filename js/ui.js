@@ -99,6 +99,8 @@ export class UI {
   }
 
   _assign(id) {
+    const char = PACK.find((p) => p.id === id);
+    this.handlers.onPreview?.(char ? char.voice : 0.5); // preview that pup's bark
     if (this._activeSlot === 'left') { this.leftId = id; this._activeSlot = 'right'; }
     else { this.rightId = id; this._activeSlot = 'left'; }
     this._refreshSlots();

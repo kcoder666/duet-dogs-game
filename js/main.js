@@ -47,6 +47,7 @@ ui.handlers = {
     audio.playUi(true);
     ui.showChars(getSong(id));
   },
+  onPreview: (voice) => audio.playBark(voice),
   onStart: async (song, leftId, rightId) => {
     await audio.resume();
     current = { song, left: getCharacter(leftId), right: getCharacter(rightId) };
