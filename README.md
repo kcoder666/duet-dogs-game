@@ -12,9 +12,10 @@ wrapped into a native iOS/Android shell (Capacitor / WKWebView / WebView).
 ## Play
 
 ```bash
-# Any static server works (ES modules require http://, not file://)
-python3 -m http.server 8765
-# then open http://localhost:8765
+make run            # npx serve . -l 3000  →  open http://localhost:3000
+
+# or any static server (ES modules require http://, not file://):
+python3 -m http.server 8000
 ```
 
 **Controls** — each pup slides between two spots (4 columns total). Move a pup
