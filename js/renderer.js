@@ -74,7 +74,7 @@ function drawLanes(ctx, L) {
 // The 4 catch pads (each dog's two positions). Empty pads show where a dog can
 // move; the pad a dog is steering to glows, and flashes on tap.
 function drawPads(ctx, L, s) {
-  const keys = ['A', 'S', 'D', 'F'];
+  const keys = ['A', 'S', '←', '→'];
   ctx.textAlign = 'center';
   ctx.textBaseline = 'middle';
   for (let col = 0; col < 4; col++) {
