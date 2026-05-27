@@ -35,11 +35,13 @@ the ScoutPaw brand palette (cream / brown / gold / husky-blue, Fredoka + Nunito)
 
 ## Tracks
 
-| Track | Difficulty | BPM | Notes |
-|-------|-----------|-----|-------|
-| Puppy Park | Easy | 96 | no decoys |
-| Treat Street | Medium | 116 | some decoys |
-| Midnight Zoomies | Hard | 140 | dense + decoys |
+| Track | Difficulty | Composer | Notes |
+|-------|-----------|----------|-------|
+| Ode to Joy | Easy | Beethoven | no decoys |
+| The Entertainer | Medium | Joplin | some decoys |
+| Hall of the Mountain King | Hard | Grieg | dense + decoys |
+
+All three are **public-domain** melodies, transcribed by hand in `tools/build-midi.mjs`.
 
 Each track is a real **MIDI file** (`assets/music/*.mid`): the engine parses it,
 plays the melody/bass through a Web Audio synth, and **builds the falling-treat

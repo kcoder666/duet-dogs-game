@@ -1,7 +1,8 @@
-// Dev script: composes ORIGINAL pop-style tunes and writes real .mid files to
+// Dev script: transcribes three PUBLIC-DOMAIN melodies into real .mid files in
 // assets/music/. Run once with `node tools/build-midi.mjs`; commit the output.
-// Melodies are generated algorithmically over common pop chord progressions —
-// 100% original, no copyrighted material reproduced.
+// The underlying compositions are public domain (composers died 100+ years ago)
+// so transcribing their melodies is free of copyright. Melodies are encoded by
+// hand here (not copied from any third-party MIDI arrangement).
 //
 //   channel 0 = melody  (becomes the catchable treats)
 //   channel 1 = bass    (accompaniment only)
@@ -13,68 +14,86 @@ import { dirname, join } from 'node:path';
 const PPQ = 480;
 const OUT = join(dirname(fileURLToPath(import.meta.url)), '..', 'assets', 'music');
 
-// Major-scale semitone offsets, and a pentatonic subset for hooky melodies.
-const SCALE = [0, 2, 4, 5, 7, 9, 11];
-const PENTA = [0, 2, 4, 7, 9];
+// --- melody helpers -------------------------------------------------------
+// A note is [beat, midi, dur]. shift() transposes+offsets a phrase in time.
+const shift = (phrase, dBeat, dMidi = 0) =>
+  phrase.map(([b, m, d]) => [b + dBeat, m + dMidi, d]);
 
-// Each song: a I–V–vi–IV-style progression (degrees into the scale, 0-based),
-// a tonic midi root, bpm, bar count and a melody "busyness" per eighth slot.
-const SONGS = [
-  { id: 'puppy-park', root: 60, bpm: 96, bars: 16, prog: [0, 4, 5, 3], density: 0.55, seed: 7 },
-  { id: 'treat-street', root: 62, bpm: 116, bars: 16, prog: [5, 3, 0, 4], density: 0.72, seed: 21 },
-  { id: 'midnight-zoomies', root: 64, bpm: 140, bars: 16, prog: [0, 5, 3, 4], density: 0.88, seed: 99 },
+// Two half-note bass roots per bar from a per-bar root list.
+function bassFromRoots(roots, beatsPerBar = 4) {
+  const out = [];
+  roots.forEach((root, bar) => {
+    out.push([bar * beatsPerBar, root, 2], [bar * beatsPerBar + 2, root, 2]);
+  });
+  return out;
+}
+
+// Driving quarter-note bass on every beat (used for Mountain King's pulse).
+function pulseBass(rootsPerBar, beatsPerBar = 4) {
+  const out = [];
+  rootsPerBar.forEach((root, bar) => {
+    for (let b = 0; b < beatsPerBar; b++) out.push([bar * beatsPerBar + b, root, 0.9]);
+  });
+  return out;
+}
+
+// === Ode to Joy — Beethoven (Easy) =======================================
+// C-major theme (E E F G G F E D C C D E …), the 8-bar tune played twice.
+const ODE_THEME = [
+  [0, 76, 1], [1, 76, 1], [2, 77, 1], [3, 79, 1],
+  [4, 79, 1], [5, 77, 1], [6, 76, 1], [7, 74, 1],
+  [8, 72, 1], [9, 72, 1], [10, 74, 1], [11, 76, 1],
+  [12, 76, 1.5], [13.5, 74, 0.5], [14, 74, 2],
+  [16, 76, 1], [17, 76, 1], [18, 77, 1], [19, 79, 1],
+  [20, 79, 1], [21, 77, 1], [22, 76, 1], [23, 74, 1],
+  [24, 72, 1], [25, 72, 1], [26, 74, 1], [27, 76, 1],
+  [28, 74, 1], [29, 72, 1], [30, 72, 2],
 ];
+const ODE = {
+  id: 'ode-to-joy', bpm: 100,
+  melody: [...ODE_THEME, ...shift(ODE_THEME, 32)],
+  bass: bassFromRoots([48, 43, 48, 43, 48, 43, 48, 48, 48, 43, 48, 43, 48, 43, 48, 48]),
+};
 
-function mulberry32(a) {
-  return function () {
-    a |= 0; a = (a + 0x6d2b79f5) | 0;
-    let t = Math.imul(a ^ (a >>> 15), 1 | a);
-    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
-  };
-}
+// === The Entertainer — Scott Joplin (Medium) =============================
+// C-major A-strain, syncopated ragtime. Best-effort hand transcription of the
+// main theme (chromatic D–D# pickup, then the bouncing figure + descents).
+const ENT_PHRASE = [
+  [0, 74, 0.5], [0.5, 75, 0.5], [1, 76, 1], [2, 72, 0.5], [2.5, 76, 0.5], [3, 72, 0.5], [3.5, 76, 0.5],
+  [4, 84, 1], [5, 81, 1], [6, 79, 0.5], [6.5, 77, 0.5], [7, 76, 1],
+  [8, 74, 0.5], [8.5, 75, 0.5], [9, 76, 1], [10, 72, 0.5], [10.5, 76, 0.5], [11, 72, 0.5], [11.5, 76, 0.5],
+  [12, 72, 0.5], [12.5, 74, 0.5], [13, 76, 0.5], [13.5, 77, 0.5], [14, 79, 0.5], [15, 72, 1],
+  [16, 79, 0.5], [16.5, 77, 0.5], [17, 76, 0.5], [17.5, 74, 0.5], [18, 72, 1], [19, 76, 1],
+  [20, 81, 1], [21, 79, 1], [22, 77, 0.5], [22.5, 76, 0.5], [23, 74, 1],
+  [24, 72, 0.5], [24.5, 74, 0.5], [25, 76, 1], [26, 79, 0.5], [26.5, 76, 0.5], [27, 72, 1],
+  [28, 74, 0.5], [28.5, 75, 0.5], [29, 76, 1], [30, 72, 2],
+];
+const ENT_ROOTS = [48, 48, 43, 43, 48, 48, 43, 48];
+const ENT = {
+  id: 'entertainer', bpm: 110,
+  melody: [...ENT_PHRASE, ...shift(ENT_PHRASE, 32)], // play the strain twice
+  bass: bassFromRoots([...ENT_ROOTS, ...ENT_ROOTS], 4),
+};
 
-function scaleNote(root, degree) {
-  const oct = Math.floor(degree / SCALE.length);
-  return root + SCALE[((degree % SCALE.length) + SCALE.length) % SCALE.length] + oct * 12;
-}
+// === In the Hall of the Mountain King — Grieg (Hard) =====================
+// A-minor creeping theme (A B C D E C E / F E C E), restated and transposed up
+// to build, over a relentless quarter-note bass pulse.
+const MK_STMT = [
+  [0, 57, 0.5], [0.5, 59, 0.5], [1, 60, 0.5], [1.5, 62, 0.5],
+  [2, 64, 0.5], [2.5, 60, 0.5], [3, 64, 0.5],
+  [4, 65, 0.5], [4.5, 64, 0.5], [5, 60, 0.5], [5.5, 64, 0.5], [6, 64, 1],
+];
+const MK_OFFSETS = [0, 0, 7, 7, 12, 12, 7, 0]; // statement transpositions (semitones)
+const MK_MELODY = [];
+const MK_ROOTS = [];
+MK_OFFSETS.forEach((off, i) => {
+  MK_MELODY.push(...shift(MK_STMT, i * 8, off));
+  const root = 45 + (off % 12); // keep bass low
+  MK_ROOTS.push(root, root); // each statement spans 2 bars
+});
+const MK = { id: 'mountain-king', bpm: 138, melody: MK_MELODY, bass: pulseBass(MK_ROOTS) };
 
-function compose(song) {
-  const rng = mulberry32(song.seed);
-  const melody = []; // {beat, dur, midi, vel}
-  const bass = [];
-  let lastDeg = 7; // start an octave up for a bright lead
-  for (let bar = 0; bar < song.bars; bar++) {
-    const chordRoot = song.prog[bar % song.prog.length]; // scale degree of the chord
-    // Bass: root on beat 1, fifth on beat 3.
-    bass.push({ beat: bar * 4, dur: 2, midi: scaleNote(song.root - 12, chordRoot), vel: 80 });
-    bass.push({ beat: bar * 4 + 2, dur: 2, midi: scaleNote(song.root - 12, chordRoot + 4), vel: 70 });
-    // Melody: walk the pentatonic on an eighth grid, snapping to chord tones on strong beats.
-    for (let e = 0; e < 8; e++) {
-      const strong = e % 2 === 0;
-      if (!strong && rng() > song.density) continue;
-      if (strong && rng() > Math.min(1, song.density + 0.25)) continue;
-      let deg;
-      if (strong) {
-        // chord tone: chord root, third or fifth (in scale steps ~ 0,2,4)
-        deg = chordRoot + [0, 2, 4][Math.floor(rng() * 3)] + 7;
-      } else {
-        // passing tone near the last note, kept in pentatonic feel
-        const step = PENTA[Math.floor(rng() * PENTA.length)] - PENTA[Math.floor(rng() * PENTA.length)];
-        deg = lastDeg + (rng() < 0.5 ? 1 : -1) * (Math.abs(step) > 0 ? 1 : 1);
-      }
-      deg = Math.max(5, Math.min(16, deg));
-      lastDeg = deg;
-      melody.push({
-        beat: bar * 4 + e * 0.5,
-        dur: 0.45,
-        midi: scaleNote(song.root, deg),
-        vel: strong ? 100 : 82,
-      });
-    }
-  }
-  return { melody, bass };
-}
+const SONGS = [ODE, ENT, MK];
 
 // --- SMF encoding ---------------------------------------------------------
 
@@ -86,21 +105,18 @@ function varLen(n) {
 }
 
 function notesToTrackBytes(notes, channel, ppq) {
-  // Build (tick, [bytes]) events for note on/off, then delta-encode.
   const evs = [];
-  for (const n of notes) {
-    const onTick = Math.round(n.beat * ppq);
-    const offTick = Math.round((n.beat + n.dur) * ppq);
-    evs.push({ tick: onTick, data: [0x90 | channel, n.midi, n.vel] });
-    evs.push({ tick: offTick, data: [0x80 | channel, n.midi, 0] });
+  for (const [beat, midi, dur] of notes) {
+    const onTick = Math.round(beat * ppq);
+    const offTick = Math.round((beat + dur) * ppq);
+    const strong = Number.isInteger(beat);
+    evs.push({ tick: onTick, data: [0x90 | channel, midi, channel ? 78 : (strong ? 102 : 84)] });
+    evs.push({ tick: offTick, data: [0x80 | channel, midi, 0] });
   }
   evs.sort((a, b) => a.tick - b.tick || (a.data[0] & 0xf0) - (b.data[0] & 0xf0));
   const out = [];
   let prev = 0;
-  for (const e of evs) {
-    out.push(...varLen(e.tick - prev), ...e.data);
-    prev = e.tick;
-  }
+  for (const e of evs) { out.push(...varLen(e.tick - prev), ...e.data); prev = e.tick; }
   out.push(...varLen(0), 0xff, 0x2f, 0x00); // end of track
   return out;
 }
@@ -120,11 +136,10 @@ function chunk(id, bytes) {
 }
 
 function buildMidi(song) {
-  const { melody, bass } = compose(song);
   const header = chunk('MThd', [0, 1, 0, 3, (PPQ >> 8) & 0xff, PPQ & 0xff]); // format 1, 3 tracks
   const t0 = chunk('MTrk', tempoTrackBytes(song.bpm));
-  const t1 = chunk('MTrk', notesToTrackBytes(melody, 0, PPQ));
-  const t2 = chunk('MTrk', notesToTrackBytes(bass, 1, PPQ));
+  const t1 = chunk('MTrk', notesToTrackBytes(song.melody, 0, PPQ));
+  const t2 = chunk('MTrk', notesToTrackBytes(song.bass, 1, PPQ));
   return Uint8Array.from([...header, ...t0, ...t1, ...t2]);
 }
 
@@ -132,5 +147,5 @@ mkdirSync(OUT, { recursive: true });
 for (const song of SONGS) {
   const bytes = buildMidi(song);
   writeFileSync(join(OUT, `${song.id}.mid`), bytes);
-  console.log(`wrote ${song.id}.mid (${bytes.length} bytes)`);
+  console.log(`wrote ${song.id}.mid (${bytes.length} bytes, ${song.melody.length} melody notes)`);
 }

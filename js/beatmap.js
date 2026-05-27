@@ -7,21 +7,22 @@
 const TREATS = ['🦴', '🍖', '🍗', '🧀', '🍩', '🍪', '🍣', '🥩'];
 const DECOY = '🌶️';
 
+// Built-in tracks are public-domain melodies transcribed in tools/build-midi.mjs.
 export const SONGS = [
   {
-    id: 'puppy-park', title: 'Puppy Park', subtitle: 'Easy · 96 BPM',
-    file: 'assets/music/puppy-park.mid', bpm: 96, fallTime: 2.0,
-    difficulty: 'Easy', decoyChance: 0, theme: '🌳',
+    id: 'ode-to-joy', title: 'Ode to Joy', subtitle: 'Easy · Beethoven',
+    file: 'assets/music/ode-to-joy.mid', bpm: 100, fallTime: 2.0,
+    difficulty: 'Easy', decoyChance: 0, theme: '🌻',
   },
   {
-    id: 'treat-street', title: 'Treat Street', subtitle: 'Medium · 116 BPM',
-    file: 'assets/music/treat-street.mid', bpm: 116, fallTime: 1.7,
-    difficulty: 'Medium', decoyChance: 0.1, theme: '🏙️',
+    id: 'entertainer', title: 'The Entertainer', subtitle: 'Medium · Joplin',
+    file: 'assets/music/entertainer.mid', bpm: 110, fallTime: 1.7,
+    difficulty: 'Medium', decoyChance: 0.1, theme: '🎹',
   },
   {
-    id: 'midnight-zoomies', title: 'Midnight Zoomies', subtitle: 'Hard · 140 BPM',
-    file: 'assets/music/midnight-zoomies.mid', bpm: 140, fallTime: 1.45,
-    difficulty: 'Hard', decoyChance: 0.18, theme: '🌙',
+    id: 'mountain-king', title: 'Hall of the Mountain King', subtitle: 'Hard · Grieg',
+    file: 'assets/music/mountain-king.mid', bpm: 138, fallTime: 1.45,
+    difficulty: 'Hard', decoyChance: 0.18, theme: '⛰️',
   },
 ];
 
