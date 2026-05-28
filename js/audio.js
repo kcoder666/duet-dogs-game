@@ -33,18 +33,31 @@ export class AudioEngine {
     return this.ctx ? this.ctx.currentTime : 0;
   }
 
-  // Start a song: procedural drum groove + the parsed MIDI melody/bass notes.
-  // midiNotes are pre-shifted (note.time = game-time of the note). Returns the
-  // audio time the track began — the timing origin shared with the beatmap.
-  startMusic(song, midiNotes = [], duration = 30, startDelay = 0.2) {
+  // Start a song. Two modes:
+  //   - synth backing (default): procedural drum groove + MIDI bass; the melody
+  //     (channel 0) is performed by the player on catch.
+  //   - prerecorded backing (opts.audioBuffer): play the decoded buffer instead,
+  //     skip drum/bass scheduling. opts.audioOffset delays buffer playback so
+  //     the recording lines up with the first (post-fall-time) treat.
+  // midiNotes are pre-shifted so note.time is the game-time of the note.
+  // Returns the audio time the track began — the timing origin for the beatmap.
+  startMusic(song, midiNotes = [], duration = 30, opts = {}, startDelay = 0.2) {
     this.song = song;
     this.running = true;
     this._nextBeat = 0;
     const start = this.now() + startDelay;
     this._nextTime = start;
     this.musicEnd = start + duration;
-    // Only the bass auto-plays as backing — the melody (channel 0) is performed
-    // by the player: each caught treat triggers its real melody note.
+    if (opts.audioBuffer) {
+      const src = this.ctx.createBufferSource();
+      src.buffer = opts.audioBuffer;
+      src.connect(this.musicGain);
+      src.start(start + (opts.audioOffset || 0));
+      this._audioSrc = src;
+      this.events = [];
+      this._evIdx = 0;
+      return start;
+    }
     this.events = midiNotes
       .filter((n) => n.chan === 1)
       .map((n) => ({ at: start + n.time, kind: 'bass', midi: n.midi, dur: n.dur, vel: n.vel || 90 }))
@@ -57,6 +70,7 @@ export class AudioEngine {
   stopMusic() {
     this.running = false;
     clearTimeout(this._timer);
+    if (this._audioSrc) { try { this._audioSrc.stop(); } catch {} this._audioSrc = null; }
   }
 
   setMuted(muted) {
@@ -212,14 +226,23 @@ export class AudioEngine {
     }));
   }
 
-  // Play a character's bark: the generated SFX sample if loaded, else a
-  // synthesized bark from the breed's voice. `char` is { id, voice }.
-  playBark(char) {
+  // Play a character's bark, pitch-shifted to a target MIDI note when given so
+  // the dog actually "sings" the song's notes. Shift is folded into one octave
+  // around the breed's natural pitch so the timbre stays recognisable.
+  // `char` is { id, voice }; `midi` is the target note pitch (optional).
+  playBark(char, midi) {
     if (!this.ctx || !char) return;
     const buf = this.barkBuffers && this.barkBuffers[char.id];
     if (buf) {
       const src = this.ctx.createBufferSource();
       src.buffer = buf;
+      if (Number.isFinite(midi)) {
+        const baseMidi = 50 + (char.voice ?? 0.5) * 30; // ~50 (deep) … 80 (yip)
+        let semis = midi - baseMidi;
+        while (semis > 6) semis -= 12;
+        while (semis < -6) semis += 12;
+        src.playbackRate.value = Math.pow(2, semis / 12);
+      }
       const g = this.ctx.createGain();
       g.gain.value = 0.9;
       src.connect(g).connect(this.master);

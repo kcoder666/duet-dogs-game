@@ -24,6 +24,15 @@ export const SONGS = [
     file: 'assets/music/mountain-king.mid', bpm: 138, fallTime: 1.45,
     difficulty: 'Hard', decoyChance: 0.18, theme: '⛰️',
   },
+  // Bonus track with a pre-recorded backing (audioFile) instead of synth music;
+  // the MIDI is just a bark sequence that drives the treat chart.
+  {
+    id: 'apt', title: 'Apt — Dog Remix', subtitle: 'Bonus · Bark along',
+    file: 'assets/music/apt.mid',
+    audioFile: 'assets/music/apt.m4a',
+    bpm: 120, fallTime: 1.5,
+    difficulty: 'Hard', decoyChance: 0, theme: '🎤',
+  },
 ];
 
 export function getSong(id) {

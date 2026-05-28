@@ -28,7 +28,41 @@ let current = { song: null, left: null, right: null };
 
 attachInput(canvas, (lane) => game.tap(lane));
 
+const hud = document.getElementById('hud');
+const pauseOverlay = document.getElementById('pause');
+const btnPauseIcon = document.getElementById('btn-pause');
+
+const showHud = (on) => { hud.classList.toggle('hidden', !on); hud.setAttribute('aria-hidden', !on); };
+const showPause = (on) => {
+  pauseOverlay.classList.toggle('hidden', !on);
+  pauseOverlay.setAttribute('aria-hidden', !on);
+  btnPauseIcon.textContent = on ? '▶' : '⏸';
+};
+
+document.getElementById('btn-pause').onclick = () => {
+  game.togglePause();
+  showPause(game.paused);
+};
+document.getElementById('btn-restart').onclick = () => game.restart();
+document.getElementById('btn-resume').onclick = () => { game.resume(); showPause(false); };
+document.getElementById('btn-restart-pause').onclick = () => { showPause(false); game.restart(); };
+document.getElementById('btn-quit').onclick = () => {
+  game.stop();
+  showPause(false); showHud(false);
+  ui.showTitle();
+};
+
+// Escape toggles pause while playing.
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && game.running) {
+    e.preventDefault();
+    game.togglePause();
+    showPause(game.paused);
+  }
+});
+
 game.onEnd = (result) => {
+  showHud(false); showPause(false);
   ui.showResults(result);
 };
 
@@ -51,15 +85,19 @@ ui.handlers = {
   onPreview: (char) => audio.playBark(char),
   onStart: async (song, leftId, rightId) => {
     await audio.resume();
+    audio.preloadBarks(PACK.map((c) => c.id)); // idempotent — safety-net preload
     current = { song, left: getCharacter(leftId), right: getCharacter(rightId) };
     ui.hide();
     fitCanvas();
+    showHud(true); showPause(false);
     game.start(song, current.left, current.right);
   },
   onRetry: async () => {
     await audio.resume();
+    audio.preloadBarks(PACK.map((c) => c.id));
     ui.hide();
     fitCanvas();
+    showHud(true); showPause(false);
     game.start(current.song, current.left, current.right);
   },
   onMenu: () => {

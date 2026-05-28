@@ -17,6 +17,18 @@
   <div id="app">
     <canvas id="game"></canvas>
     <div id="ui"></div>
+    <div id="hud" class="hidden" aria-hidden="true">
+      <button id="btn-pause" class="hud-btn" aria-label="Pause" title="Pause (Esc)">⏸</button>
+      <button id="btn-restart" class="hud-btn" aria-label="Restart" title="Restart">↻</button>
+    </div>
+    <div id="pause" class="hidden" aria-hidden="true">
+      <div class="pause-card">
+        <h2>Paused</h2>
+        <button class="btn primary" id="btn-resume">▶ Resume</button>
+        <button class="btn ghost" id="btn-restart-pause">↻ Restart</button>
+        <button class="btn ghost" id="btn-quit">Menu</button>
+      </div>
+    </div>
   </div>
   <script type="module" src="js/main.js"></script>
 </body>

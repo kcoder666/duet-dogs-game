@@ -27,16 +27,36 @@ export class Game {
     // fall lead) so the first treat has room to fall. On any failure the
     // beatmap builder produces a procedural fallback chart.
     let shifted = [];
+    let audioBuffer = null;
+    const offset = song.fallTime + 60 / song.bpm;
     try {
       const buf = await fetch(song.file).then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         return r.arrayBuffer();
       });
       const midi = parseMidi(buf);
-      const offset = song.fallTime + 60 / song.bpm;
-      shifted = midi.notes.map((n) => ({ ...n, time: n.time + offset }));
+      // For audio-backed songs, time-scale the MIDI so its full length matches
+      // the backing track. MIDIs exported without a tempo meta default to
+      // 120 BPM; this auto-stretches them onto the recording's actual tempo,
+      // so each bark beat lands on the matching WAV beat.
+      let scale = 1;
+      if (song.audioFile) {
+        const ab = await fetch(song.audioFile).then((r) => r.arrayBuffer());
+        audioBuffer = await this.audio.ctx.decodeAudioData(ab);
+        const midiEnd = midi.notes.reduce((m, n) => Math.max(m, n.time + n.dur), 0);
+        if (midiEnd > 0) scale = audioBuffer.duration / midiEnd;
+      }
+      shifted = midi.notes.map((n) => ({
+        ...n,
+        time: n.time * scale + offset,
+        dur: n.dur * scale,
+      }));
+      if (audioBuffer) {
+        const cutoff = offset + audioBuffer.duration - 0.5;
+        shifted = shifted.filter((n) => n.time < cutoff);
+      }
     } catch (e) {
-      console.warn('MIDI load failed, using fallback chart:', e.message);
+      console.warn('MIDI/audio load failed, using fallback chart:', e.message);
       shifted = [];
     }
     const map = buildBeatmapFromMidi(shifted, song);
@@ -67,16 +87,61 @@ export class Game {
     // position (0..1); dogTarget is the slot (0 or 1) the player steered it to.
     this.dogPos = [0, 0];
     this.dogTarget = [0, 0];
-    this.musicStart = this.audio.startMusic(song, shifted, map.duration);
+    this.musicStart = this.audio.startMusic(song, shifted, map.duration, {
+      audioBuffer, audioOffset: offset,
+    });
     this.running = true;
+    this.paused = false;
     this.lastFrame = performance.now();
-    this._loop = this._loop.bind(this);
-    requestAnimationFrame(this._loop);
+    // Bump runId so any stale rAF callback from a previous run aborts itself.
+    const runId = (this._runId = (this._runId || 0) + 1);
+    const tick = (ts) => {
+      if (this._runId !== runId || !this.running) return;
+      if (!this.paused) {
+        const dt = Math.min(0.05, (ts - this.lastFrame) / 1000);
+        this._update(dt);
+      }
+      this.lastFrame = ts;
+      draw(this.ctx, this.canvas.clientWidth, this.canvas.clientHeight, this._snapshot());
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
   }
 
   stop() {
     this.running = false;
+    this.paused = false;
     this.audio.stopMusic();
+  }
+
+  // Pause the audio clock + the per-frame update; visuals stay frozen on screen.
+  pause() {
+    if (!this.running || this.paused) return;
+    this.paused = true;
+    if (this.audio.ctx) this.audio.ctx.suspend();
+  }
+
+  resume() {
+    if (!this.running || !this.paused) return;
+    this.paused = false;
+    this.lastFrame = performance.now();
+    if (this.audio.ctx) this.audio.ctx.resume();
+  }
+
+  togglePause() {
+    if (!this.running) return;
+    if (this.paused) this.resume(); else this.pause();
+  }
+
+  // Restart the current song with the same duet. Cancels the old run first.
+  async restart() {
+    if (!this.song) return;
+    const s = this.song, l = this.leftChar, r = this.rightChar;
+    if (this.audio.ctx && this.audio.ctx.state === 'suspended') {
+      await this.audio.ctx.resume();
+    }
+    this.stop();
+    await this.start(s, l, r);
   }
 
   get audioTime() {
@@ -118,11 +183,19 @@ export class Game {
       this.happiness + (perfect ? HAPPINESS.perfectGain : HAPPINESS.goodGain));
     // Catching performs the song: play this treat's actual melody note.
     // (Fallback charts without a source note use the pentatonic catch sound.)
-    if (Number.isFinite(treat.midi)) this.audio.playMelodyNote(treat.midi, perfect);
-    else this.audio.playCatch(treat.side, Math.floor(this.combo / 2));
-    // Layer the catching dog's own bark (generated SFX, or synth fallback).
+    // Songs with a prerecorded backing skip the synth note so the recording
+    // stays clean — only the bark sounds on top.
+    if (this.song.audioFile) {
+      /* skip — recording is the music; only bark layers on catch */
+    } else if (Number.isFinite(treat.midi)) {
+      this.audio.playMelodyNote(treat.midi, perfect);
+    } else {
+      this.audio.playCatch(treat.side, Math.floor(this.combo / 2));
+    }
+    // Layer the catching dog's own bark, pitch-shifted to the note so the dog
+    // actually "sings" the song's notes (instead of a flat sample).
     const char = treat.side === 0 ? this.leftChar : this.rightChar;
-    this.audio.playBark(char);
+    this.audio.playBark(char, treat.midi);
     this.comboPulse = 1;
     this.hitFlash[treat.side] = 1;
     const L = this._layout();
@@ -148,23 +221,18 @@ export class Game {
   _registerMiss(treat) {
     this.combo = 0;
     this.misses++;
-    this.happiness -= HAPPINESS.missLoss;
     this.shake = 8;
     this.audio.playMiss();
-    // Still sound the missed note quietly so the melody stays recognisable.
-    if (Number.isFinite(treat.midi)) this.audio.playMelodyNote(treat.midi, false, 0.4);
+    if (this.song.audioFile) {
+      // Audio-backed songs are forgiving: no happiness drain, no synth tone
+      // (the recording is the music). Only the visual MISS + miss SFX play.
+    } else {
+      this.happiness -= HAPPINESS.missLoss;
+      if (Number.isFinite(treat.midi)) this.audio.playMelodyNote(treat.midi, false, 0.4);
+    }
     const L = this._layout();
     this._popup(L.colCx[treat.side * 2 + treat.slot], L.hitY - L.dogR, 'MISS', '#E0563B', 18);
     if (this.happiness <= 0) this._end();
-  }
-
-  _loop(ts) {
-    if (!this.running) return;
-    const dt = Math.min(0.05, (ts - this.lastFrame) / 1000);
-    this.lastFrame = ts;
-    this._update(dt);
-    draw(this.ctx, this.canvas.clientWidth, this.canvas.clientHeight, this._snapshot());
-    requestAnimationFrame(this._loop);
   }
 
   _update(dt) {

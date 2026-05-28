@@ -80,6 +80,63 @@ body {
 }
 #ui.active { display: block; }
 
+/* ---------- in-game HUD (pause / restart icons) ---------- */
+#hud {
+  position: absolute;
+  /* Sit just below the canvas-drawn happiness bar + score row so the buttons
+     don't overlap the HUD numbers. */
+  top: calc(64px + env(safe-area-inset-top));
+  right: 12px;
+  display: flex;
+  gap: 8px;
+  z-index: 6;
+}
+#hud.hidden { display: none; }
+.hud-btn {
+  width: 46px; height: 46px;
+  border: 2px solid rgba(140, 100, 32, 0.5);
+  border-radius: 50%;
+  background: var(--cream-deep);
+  color: var(--brown);
+  font-size: 22px;
+  font-weight: 800;
+  cursor: pointer;
+  display: grid; place-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+  transition: transform 0.1s ease, background 0.1s ease;
+}
+.hud-btn:hover { background: var(--gold); color: #fff; }
+.hud-btn:active { transform: scale(0.92); }
+/* Pause stays brighter so it's the obvious tap target. */
+#btn-pause { background: var(--gold); color: #fff; }
+
+/* ---------- pause overlay ---------- */
+#pause {
+  position: absolute;
+  inset: 0;
+  z-index: 7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(43, 29, 16, 0.55);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  animation: fade 0.18s ease;
+}
+#pause.hidden { display: none; }
+.pause-card {
+  background: var(--cream);
+  border-radius: 22px;
+  padding: 22px 28px 24px;
+  display: flex; flex-direction: column;
+  gap: 10px;
+  align-items: stretch;
+  min-width: 220px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+  text-align: center;
+}
+.pause-card h2 { margin: 4px 0 10px; }
+
 .screen {
   position: absolute;
   inset: 0;
